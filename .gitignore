@@ -1,0 +1,7 @@
+# Ignore everything on data folder 
+data/
+
+#Ignore R Project related files
+.Rhistory
+.Rproj.user/
+*.Rproj
