@@ -6,6 +6,7 @@ library(maps)
 library(maps)
 library(mapproj)
 library(ggthemes)
+library(MASS)
 
 vehicle_data <- load_vehicle_data()
 total_mean_price <- mean(vehicle_data$Price)
@@ -160,3 +161,14 @@ vehicle_data_with_geolocation <- vehicle_data %>%
 vehicle_data_with_geolocation %>% ggplot(mapping = aes(x = long, y =lat, group=group, fill=freq)) + 
     geom_polygon(color="gray90", size = 0.2) + coord_map(projection="albers", lat0=39, lat1=45) + 
     labs(fill="Percent") + theme_map() 
+
+
+# Odometer distribution
+
+vehicle_data %>% ggplot(mapping = aes(x = Odometer)) + geom_density()
+
+vehicle_data %>% mutate(Price = log(Price)) %>% ggplot(mapping = aes(x = Price)) + geom_density()
+
+
+
+

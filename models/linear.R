@@ -1,5 +1,6 @@
-# Test linear regression models into sample data
+source("init.R")
 
+# Test linear regression models into sample data
 
 
 # Think of difference aspect to tackle a problem of filtering data 
