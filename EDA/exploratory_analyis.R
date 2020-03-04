@@ -1,27 +1,15 @@
+source("init.R")
 library(ggplot2)
 library(dplyr)
 library(forcats)
-library(sf)
-install.packages('sf')
+library(maps)
+library(maps)
+library(mapproj)
+library(ggthemes)
 
-data = read.csv("data/data.csv", sep = ";", 
-                  colClasses=c("Interior"="character", "SellerCity"="character"), 
-                  header = TRUE)
-total_mean_price = mean(vehicle_data$Price)
-total_sd_price = sd(vehicle_data$Price)
-
-summary(data)
-
-# What is CARFAX1Owner, CARFAX1OwnerReportOnline, CARFAXCleanTitle?
-
-# Filter out unimportant variables like ids, or last exported that entail no information
-vehicle_data <- data %>% select(-X_id, -VIN, -Link, -LastExported, -Exported) 
-colnames(vehicle_data)
-
-# Preprocessing the data to remove, impute or treat in order to be more easily handled
-vehicle_data <- vehicle_data %>% mutate(SellerCity = as.factor(toupper(SellerCity)))
-
-# Distribution graph
+vehicle_data <- load_vehicle_data()
+total_mean_price <- mean(vehicle_data$Price)
+total_sd_price <- sd(vehicle_data$Price)
 
 # Unlevel distribution accross color  
 vehicle_data %>% group_by(Color) %>% summarise(n = n()) %>% mutate(freq = (n/sum(n)) ) %>% 
@@ -146,14 +134,29 @@ vehicle_data %>% filter(!is.na(vRank), !is.na(Rank)) %>% ggplot(aes(x = vRank, y
 
 
 # Address and location of seller information
-vehicle_data$SellerState
+glimpse(vehicle_data)
+
+# Most of the business is related toward florida, it is having a lot of impact when it comes
+# price setting, the curve that plot the average price of car per city follows a rather clear 
+# sinosoudial pattern, with most of the data within the 1 s. deviation from the mean 
+vehicle_data %>% filter(SellerState=="FL") %>% group_by(SellerState, SellerCity) %>% 
+    summarise(price_mean=mean(Price)) %>% 
+    ggplot(mapping=aes(x = price_mean, y = reorder(SellerCity, price_mean))) +
+    geom_vline(xintercept = total_mean_price, color = "red", linetype="dashed") + 
+    geom_vline(xintercept = total_mean_price+total_sd_price, color = "blue", linetype="dashed") + 
+    geom_vline(xintercept = total_mean_price-total_sd_price, color = "blue", linetype="dashed") + 
+    geom_point(size = 2) 
 
 
-# Important measurement mean, standard deviation, variance
+glimpse(vehicle_data)
+us_states <- map_data("state")
 
-# Test linear regression models into sample data
+vehicle_data_with_geolocation <- vehicle_data %>% 
+          group_by(SellerState) %>% summarise(count = n()) %>%
+          mutate(region = tolower(state.name[match(SellerState, state.abb)]), freq = count/sum(count)) %>% 
+          filter(!is.na(region)) %>%
+          right_join(us_states)
 
-# Think of difference aspect to tackle a problem of filtering data 
-# (include the categorical data or run linear regression on the fly)
-
-# Simulate or lookup for filtering with too few observations
+vehicle_data_with_geolocation %>% ggplot(mapping = aes(x = long, y =lat, group=group, fill=freq)) + 
+    geom_polygon(color="gray90", size = 0.2) + coord_map(projection="albers", lat0=39, lat1=45) + 
+    labs(fill="Percent") + theme_map() 
