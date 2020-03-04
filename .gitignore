@@ -7,3 +7,10 @@ data/
 .Rhistory
 .Rproj.user/
 *.Rproj
+
+
+# Ignoring reporting files
+*.html
+*.log
+*.tex
+
