@@ -29,7 +29,7 @@ library(purrr)
 library(tidyr)
 library(broom)
   
-#<<missingness_plot>>
+<<missingness_plot>>
   number_columns <- ncol(raw_data)
   number_rows <- nrow(raw_data)
   number_of_make <- 17
@@ -55,7 +55,7 @@ glimpse(raw_data)
 It is also interesting to show the lack of missingness in the data itself, probably due to the a previous preprocessing and cleaning at the scraping stage with fewer than <1% to account for missingess
 
 ```{r echo=FALSE}
-#missingness_plot
+missingness_plot
 ```
 
 ### Unbalance and longtail trend in the dataset
