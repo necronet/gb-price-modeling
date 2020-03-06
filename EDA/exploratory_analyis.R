@@ -7,20 +7,24 @@ library(maps)
 library(mapproj)
 library(ggthemes)
 library(MASS)
+library(visdat)
 
 vehicle_data <- load_vehicle_data()
 total_mean_price <- mean(vehicle_data$Price)
 total_sd_price <- sd(vehicle_data$Price)
 
+vis_miss(vehicle_data, cluster = TRUE)
+
 # Unlevel distribution accross color  
 vehicle_data %>% group_by(Color) %>% summarise(n = n()) %>% mutate(freq = (n/sum(n)) ) %>% 
     arrange(desc(freq)) %>% mutate(cumsum = cumsum(freq)) %>% filter(cumsum < .99) %>%
     mutate(Color = fct_reorder(Color, n), count =n) %>% 
-  ggplot(aes(x = Color, y=freq)) + geom_col() + coord_flip() + scale_y_continuous(labels=scales::percent)
+  ggplot(aes(x = Color, y=freq)) + geom_col() + coord_flip() + scale_y_continuous(labels=scales::percent) +
+  ggtitle("Vehicle percentage per color") + labs(x = "Percentage")
 
 
 # Long trailed data on Age 
-vehicle_data %>% ggplot(aes(x = Age)) + geom_density(color = "black", fill = "gray") + 
+vehicle_data %>% mutate(Age = Age^1) %>% ggplot(aes(x = Age)) + geom_density(color = "black", fill = "gray") + 
     geom_vline(aes(xintercept = mean(Age)), color = "red", linetype = "dashed", size = .5) +
     geom_vline(aes(xintercept = median(Age)), color = "blue", linetype = 4, size = .5)
 
@@ -97,7 +101,7 @@ vehicle_data %>% ggplot(aes(x = Make, y=Price)) + geom_boxplot(fill = "#4271AE",
   stat_summary(fun.y=mean, geom="errorbar", width = .75, linetype = "dashed", aes(ymax = ..y.., ymin = ..y..)) +
   scale_y_continuous(name = "Price per Maker", breaks = seq(0, 60000, 20000)) + theme_bw()
 vehicle_data %>% ggplot(aes(x = Odometer, y = Price)) + geom_point() + facet_wrap(~Make)
-
+vehicle_data %>% {length(levels(.$Make))}
 # Make model also appear to be following a similar distribution as Model showing price spread out accross different models
 # although with some very interesting vehicles being highly popular withing the range of the mean values
 vehicle_data %>% group_by(MakeModel) %>% summarise(count = n(), mean_price = mean(Price)) %>% arrange(desc(count)) %>%  
@@ -146,7 +150,8 @@ vehicle_data %>% filter(SellerState=="FL") %>% group_by(SellerState, SellerCity)
     geom_vline(xintercept = total_mean_price, color = "red", linetype="dashed") + 
     geom_vline(xintercept = total_mean_price+total_sd_price, color = "blue", linetype="dashed") + 
     geom_vline(xintercept = total_mean_price-total_sd_price, color = "blue", linetype="dashed") + 
-    geom_point(size = 2) 
+    geom_point(size = 2) + ggtitle("Average car price in Florida") + labs(x = "Price Mean") + 
+    labs(y = "FL city")
 
 
 glimpse(vehicle_data)
