@@ -11,10 +11,10 @@ library(broom)
 
 vehicle_data <- load_vehicle_data() %>% filter(!is.na(vRank))
 ggqqplot(vehicle_data$Price^-.5)
-
+glimpse(vehicle_data)
 # vehicle_data %>% ggplot(mapping = aes(x = Odometer, y = Price^.5)) + geom_point()
 
-linear_formula <- Price^-.5 ~ Odometer 
+linear_formula <- Price^-.5 ~ Odometer + Distance + Age
 
 # Test linear regression models into sample data
 simple_linear_model <- lm(Price ~ Odometer + vRank,vehicle_data)
@@ -39,6 +39,8 @@ ggplot(data = vehicle_data, aes(x = Odometer, y = Price^-.5)) +
   geom_point(color='gray50') +
   geom_line(color='blue',data = predicted_df, aes(x=odometer, y=price_pred))
 
+vehicle_data %>% count(MakeModel) %>% nrow() - nrow(linear_models_per_group)  
+
 # Simulate how the regression is currently made
 vehicle_nested_data <- vehicle_data %>% group_by(MakeModel) %>% filter(n() > 30) %>% nest()
 
@@ -49,10 +51,16 @@ linear_models_per_group <-  vehicle_nested_data %>%
                 mutate(augment = map(model, ~augment(.x)))
  
 #mutate(linear_model = map( ~ lm(linear_formula, data = .) %>% glance(), .x = data))
-             
+
+           
 linear_models_per_group %>% unnest(info) %>% filter(term == "Odometer") %>% ggplot(aes(x = estimate)) + geom_histogram(bins = 50)
 
-linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% arrange(desc(r.squared))
+linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% 
+          ungroup() %>% mutate(MakeModel = fct_reorder(MakeModel, adj.r.squared), 
+                               Rate = ifelse(adj.r.squared >= .80, "Good",
+                                             ifelse(adj.r.squared >= .55, "Fair","Bad"))) %>%
+          ggplot(aes(x = MakeModel, y=adj.r.squared, fill=Rate)) + geom_col() +coord_flip() 
+
 
 linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% arrange(desc(r.squared)) %>% 
                   head(1) %>% unnest(augment) %>% mutate (PriceOrg = `Price..0.5`^-2) %>%
