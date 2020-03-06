@@ -1,8 +1,8 @@
 ---
 title: "Exploratory Data Analysis for price prediction"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -11,24 +11,170 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::read_chunk("preliminary_report.R")
 ```
 
-
-## About the data and its nature
-
-Data contains the following information on a spreadsheet that was transform into a plain CSV file.
-
-```{r, echo=FALSE, tidy=TRUE, tidy.opts=list(comment=FALSE),  message=FALSE}
+```{r, echo=FALSE, tidy=TRUE, tidy.opts=list(comment=FALSE),  message=FALSE, include=FALSE}
 <<raw_data>>
-  colnames(raw_data)
+<<plot_color_percentage>>
+<<plot_density_age>>
+<<plot_drive_train>>
+<<plot_vehicle_model>>
+<<count_certified>>
+<<count_CARFAX1Owner>>
+<<count_CARFAX1OwnerReportOnline>>
+<<count_CARFAXCleanTitle>>
+<<plot_geo_observation>>
+<<vehicle_data>>
+  
+library(scatterplot3d)
+library(purrr)
+library(tidyr)
+library(broom)
+  
+#<<missingness_plot>>
+  number_columns <- ncol(raw_data)
+  number_rows <- nrow(raw_data)
+  number_of_make <- 17
+```
+
+## Dataset visualization
+
+### Overview
+
+Base data provided contains `r number_columns`X`r number_rows` set of data with informative named columns:
+```{r, echo=FALSE, tidy=TRUE, tidy.opts=list(comment=FALSE),  message=FALSE}
+colnames(raw_data)
+```
+
+Excluding the following columns `-X_id, -VIN, -Link, -LastExported, -Exported, -Seller, -SellerAddress` this report will focus on the visualization of these dataset aswel as exploring the feasability of applying linear models to predict the relationship between `Price` and the rest of attributes.
+
+To start to use the dataset for model building it is imperative to understand with what kind of information one is dealing with. A glimpse into the data reveal the categorical nature, with several columns tag as character or as factor and some few as integer or double:
+
+```{r echo=FALSE}
+glimpse(raw_data)
+```
+
+It is also interesting to show the lack of missingness in the data itself, probably due to the a previous preprocessing and cleaning at the scraping stage with fewer than <1% to account for missingess
+
+```{r echo=FALSE}
+#missingness_plot
+```
+
+### Unbalance and longtail trend in the dataset
+
+Vehicles across the different categories shown an unbalance and longtail behaviour that can be shown visually:
+
+```{r echo=FALSE}
+plot_color_percentage
+plot_density_age
+plot_drive_train
+plot_vehicle_model
+```
+
+The trend of unbalance categories in the dataset is not limited to the 4 categories above, Certified and CARFAX* columns also present this behaviour.
+
+```{r echo=FALSE}
+count_certified
+count_CARFAX1Owner
+count_CARFAX1OwnerReportOnline
+count_CARFAXCleanTitle
+```
+
+This same can be seen geovisaully with most of the observation gets concentrated towards the state of Florida, as shown bellow:
+
+```{r echo=FALSE}
+plot_geo_observation
 ```
 
 
+The issue above can present challenge for models that directly depends on those features to be built. For the time being this report focus on the relationship between `Price ~ Odometer` per each `MakeModel`, but even then when splitting the data some spliting are to small to construct any significant model.
 
-## Including Plots
 
-You can also embed plots, for example:
+### Looking for evidence for linearity
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+The goal of this analysis is to test the hypothesis of linearity between `Price ~ Odometer` unfortunately as we'll discover later this relationship doesn't always seen to hold true. Initially plotting the whole data set show a trend downward betwen both attribute but with plenty of variance would be hard to plot a line model that can explain such variance.
+
+
+```{r }
+vehicle_data %>% ggplot(aes(x = Odometer, y = Price)) + geom_point()
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Having the vehicles section by `Body` types, one can start observing some linear relationship although still with difficulties clearly where most of the data is on particularly on `2D Coupe`, `4D Sedan` and `4D Sport Utility`. 
+
+```{r }
+vehicle_data %>% ggplot(aes(x = Odometer, y = Price)) + geom_point() + facet_wrap(~Body)
+```
+
+`Make` attribute is not immune to the linear/non-linear trend seem in some models, by splitting the relationship of `Price~Odometer` among `{r number_of_make}`. In fact one ca spot some outliers in `Toyota` `Ford` and a odly shape distribution on `Dodge` and `Jeep`
+
+```{r echo=FALSE}
+vehicle_data %>% ggplot(aes(x = Odometer, y = Price)) + geom_point() + facet_wrap(~Make)
+```
+
+On the note of trying to find a relationship amongs the current attributes `Distance, Odometer and Price` play are very close role among themselve, a 3d scatter plot reveals a significant number of pointes being push to the extremes:
+
+```{r echo=FALSE}
+colors <- c("#999999", "#E69F00", "#56B4E9", "#E54B4B", "#C8D6AF","#870058","#0D0628","#B3D6C6", "#E3D87E","#35A7FF","#F2CC8F")
+colors <- colors[as.numeric(vehicle_data$Body)]
+scatterplot3d(vehicle_data$Price, vehicle_data$Odometer, vehicle_data$Distance, pch = 16, color="#35A7FF", 
+              xlab = "Price",
+              ylab = "Odometer",
+              zlab = "Distance")
+
+#legend("right", plot_distance_odometer_price$xyz.convert(7.5, 3, 4.5), legend = levels(vehicle_data$Body),
+#      col =  c("#999999", "#E69F00", "#56B4E9", "#E54B4B", "#C8D6AF","#870058","#0D0628","#B3D6C6", #"#E3D87E","#35A7FF","#F2CC8F"), pch = 16)
+```
+ 
+```{r echo=FALSE}
+ vehicle_data %>% ggplot(aes(x = Distance)) + geom_density(color = "black", fill = "gray") + 
+  geom_vline(aes(xintercept = mean(Distance)), color = "red", linetype = "dashed", size = .5) +
+  geom_vline(aes(xintercept = median(Distance)), color = "blue", linetype = 4, size = .5) + facet_wrap(~Body)
+```
+
+
+## Working with linear regression
+
+Similar to many data set categorical data seem to be getting different data distribution accross the dataset, this make sense considering than purchasing a Mercedez-Benz is a different experience, price range and overall customer target than a Toyota Corolla SE. Therefore we've built several linear regression model per `MakeModel` attribute, which will be the main driver to split the models. 
+
+Formula: `Price^-.5 ~ Odometer`
+
+```{r echo=FALSE, fig.height=12}
+linear_models_per_group <-  vehicle_data %>% group_by(MakeModel) %>% filter(n() > 30) %>% nest() %>% 
+                mutate(model = map(data, ~lm(Price^-.5 ~ Odometer, data = .x))) %>% 
+                mutate(info = map(model, ~tidy(.x))) %>%
+                mutate(coef = map(model, ~glance(.x))) %>%
+                mutate(augment = map(model, ~augment(.x)))
+
+linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% 
+          ungroup() %>% mutate(MakeModel = fct_reorder(MakeModel, adj.r.squared), 
+                               Rate = ifelse(adj.r.squared >= .80, "Good",
+                                             ifelse(adj.r.squared >= .55, "Fair","Bad"))) %>%
+          ggplot(aes(x = MakeModel, y=adj.r.squared, fill=Rate)) + geom_col() +coord_flip() 
+```
+
+Considering the relationship presented previously, this relationship seem to be more robust formula: `Price^-.5 ~ Odometer + Distance`
+
+```{r fig.height=12}
+linear_models_per_group <-  vehicle_data %>% group_by(MakeModel) %>% filter(n() > 30) %>% nest() %>% 
+                mutate(model = map(data, ~lm(Price^-.5 ~ Odometer + Distance, data = .x))) %>% 
+                mutate(info = map(model, ~tidy(.x))) %>%
+                mutate(coef = map(model, ~glance(.x))) %>%
+                mutate(augment = map(model, ~augment(.x)))
+
+linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% 
+          ungroup() %>% mutate(MakeModel = fct_reorder(MakeModel, adj.r.squared), 
+                               Rate = ifelse(adj.r.squared >= .80, "Good",
+                                             ifelse(adj.r.squared >= .55, "Fair","Bad"))) %>%
+          ggplot(aes(x = MakeModel, y=adj.r.squared, fill=Rate)) + geom_col() +coord_flip() 
+```
+
+## Final notes:
+
+Even though most model are not performing above .5 `R^2` it depends on the team that ihas to deal with this prediction their level of comfort with these results, if the approach will be to continue to polish linear regression, some suggestion include: 
+- Looking for a higher polynomial combination
+- Including other dichotomous variable 
+- Encoding other categorical variables such as Body/Make (but this can turn to be challenging if one-hot vector is used it may endup with too much of a sparse matrix)
+
+Also a very attractive approach is the use of other statistical models that could outperformed OLS or WLS in this arena. So far we can say that the dataset signal positively to get to a close to market prediction of price. 
+
+
+
+
