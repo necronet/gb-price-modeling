@@ -10,6 +10,7 @@ data/
 .RData
 
 # Ignoring reporting files
+*.pdf
 *.html
 *.log
 *.tex
