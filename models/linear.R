@@ -55,6 +55,8 @@ linear_models_per_group <-  vehicle_nested_data %>%
            
 linear_models_per_group %>% unnest(info) %>% filter(term == "Odometer") %>% ggplot(aes(x = estimate)) + geom_histogram(bins = 50)
 
+
+
 linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% 
           ungroup() %>% mutate(MakeModel = fct_reorder(MakeModel, adj.r.squared), 
                                Rate = ifelse(adj.r.squared >= .80, "Good",
@@ -67,8 +69,16 @@ linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% 
                   ggplot(aes(x = Odometer, y = PriceOrg)) + geom_point() + geom_line(aes(y= .fitted^-2), color="blue")
 
 # Best vs Worst with linear models
-vehicle_data %>% filter(MakeModel == "2019 Chrysler Pacifica Touring L") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point()
-vehicle_data %>% filter(MakeModel == "2020 Toyota Corolla SE") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point()
+linear_models_per_group %>% unnest(coef) %>% filter(!is.nan(adj.r.squared)) %>% arrange(desc(-r.squared)) %>% dplyr::select(MakeModel, r.squared)
+    
+vehicle_data %>% filter(MakeModel == "2019 Chrysler Pacifica Touring L") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point() + ggtitle("2019 Chrysler Pacifica Touring L")
+
+vehicle_data %>% filter(MakeModel == "2020 Toyota Corolla SE") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point() + ggtitle("2020 Toyota Corolla SE")
+vehicle_data %>% filter(MakeModel == "2016 Toyota Corolla LE") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point() + ggtitle("2020 Toyota Corolla SE")
+
+vehicle_data %>% filter(MakeModel == "2019 Jeep Wrangler Unlimited Sport") %>% ggplot(mapping=aes(x=Odometer, y=Price)) + geom_point() + ggtitle("2019 Jeep Wrangler Unlimited Sport")
+
+
 
 
 # Simulate or lookup for filtering with too few observations

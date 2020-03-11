@@ -153,6 +153,8 @@ vehicle_data %>% filter(SellerState=="FL") %>% group_by(SellerState, SellerCity)
     geom_point(size = 2) + ggtitle("Average car price in Florida") + labs(x = "Price Mean") + 
     labs(y = "FL city")
 
+vehicle_data %>% filter(SellerState=="FL") %>% group_by(SellerState, SellerCity) %>% 
+  summarise(price_mean=mean(Price), max_price=max(Price), vehicle_count=n()) %>% arrange(desc(-price_mean))
 
 glimpse(vehicle_data)
 us_states <- map_data("state")
